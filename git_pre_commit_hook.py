@@ -7,8 +7,8 @@ VERSION INFO::
   License: Apache 2.0
     $Repo: git_kw_substitution
   $Author: Anders Wiklund
-    $Date: 2023-07-23 08:16:52
-     $Rev: 2
+    $Date: 2024-03-28 16:40:42
+     $Rev: 1
 """
 
 # BUILTIN modules
@@ -17,6 +17,7 @@ import re
 import sys
 import hashlib
 from pathlib import Path
+from typing import Optional
 from datetime import datetime
 from contextlib import closing
 
@@ -28,7 +29,6 @@ from filelock import FileLock
 # local modules
 from secrets_manager import get_secrets_file_content
 from git_utilities import get_git_root_path, get_git_username, get_git_branch
-
 
 # Constants
 RE_KEYS = [r'\$Repo:', r'\$Author:', r'\$Date:', r'\$Rev:']
@@ -46,29 +46,33 @@ class GitPreCommitHook:
     following keys B{$Rev}, B{$Author}, B{$Date} and B{$Repo} for files with
     a valid file extension.
 
-    Since this program changes the header block in the GIT supplied files the
-    initial commit will always fail. To make the second commit successful we
-    need to store calculated CRC values for each file in a temporary json repo
-    B{.pre-commit-repo.json} file. When the subsequent commit is executed the
-    CRC values will be the same and no file change is needed.
+    Since this program changes the header block in the GIT supplied files, the
+    initial commit will always fail.
 
-    The repositories table is stored in a MySQL DB that needs to be placed on
+    To make the second commit successful, we need to store calculated CRC values
+    for each file in a temporary json repo B{.pre-commit-repo.json} file.
+    When the additional commit is executed, the CRC values will be the same and
+    no file change is needed.
+
+    The repositories' table is stored in a MySQL DB that needs to be placed on
     a server that all developers have access to (not localhost).
 
-    The DB connection parameters are stored in the secrets file B{mysql_dsn}.
-    The location of the secrets directory varies depending on platform. The
+    The DB connection parameters are stored in the secrets' file B{mysql_dsn}.
+    The location of the secrets directory varies depending on the platform.
+    The
     following python code snippet will show you where it's at::
 
         >>> import site
         >>> print(f'{site.USER_BASE}/secrets')
 
-    You need to create the secrets file in that directory with the following
+    You need to create the secrets' file in that directory with the following
     content (replace the asterix values with your own values)::
 
         user=*****,password=*****,host=*****,port=3306,autocommit=true
 
     Note that a Git commit command can call the pre-commit hook several
-    times with a subset of the files being committed. This is handled
+    times with a subset of the files being committed.
+    This is handled
     by reserving exclusive access for the program to work.
 
     Handled file types are::
@@ -79,7 +83,8 @@ class GitPreCommitHook:
       - .toml
       - .yaml
 
-    The program is started by the Git pre-commit hook. How to configure this
+    The program is started by the Git pre-commit hook.
+    How to configure this
     in python is documented at: U{https://pre-commit.com/index.html}.
 
     A pre-commit example block in the I{.pre-commit-config.yaml} file::
@@ -93,7 +98,7 @@ class GitPreCommitHook:
                 stages: [commit, merge-commit]
                 types: [text]
 
-    Git provide all required values in the command line arguments::
+    Git provides all required values in the command line arguments::
       [0..n] => file1..n
 
 
@@ -122,17 +127,17 @@ class GitPreCommitHook:
         """
 
         # Input parameters.
-        self.files = args
+        self.files: list = args
 
         # Unique parameters.
         self.commit_data = {}
-        self.infile: Path = None
         self.files_modified = False
+        self.infile: Optional[Path] = None
 
     # ---------------------------------------------------------
     #
     def current_infile_ext(self) -> bool:
-        """ Return infile file extension.
+        """ Return the infile file extension.
 
         Make sure you get the extension, even from a '.env' file.
 
@@ -143,7 +148,7 @@ class GitPreCommitHook:
     # ---------------------------------------------------------
     #
     def patchable_file(self) -> bool:
-        """ Return patchable file status based on file extension.
+        """ Return patchable file status based on the file extension.
 
         @return: Validation result.
         """
@@ -160,7 +165,7 @@ class GitPreCommitHook:
 
         @return: File MD5 checksum.
 
-        @raise RuntimeError: when MD5 CRC calculation fails.
+        @raise RuntimeError: When MD5 CRC calculation fails.
         """
 
         idx = 0
@@ -246,7 +251,7 @@ class GitPreCommitHook:
         @param current_crc: MD5 checksum for current file.
         """
 
-        # Only update once regardless of number of pre-commit hook thread calls.
+        # Only update once regardless of the number of pre-commit hook thread calls.
         if self.commit_data['rev'] == 0:
             self.commit_data['rev'] = self.get_new_repository_revision()
 
@@ -265,8 +270,8 @@ class GitPreCommitHook:
         self.commit_data['files'][key] = current_crc
         print(f'Updating header block in file {self.infile}')
 
-        # To keep the original file EOL endings we need to write the rows in binary format
-        # since PYTHON will automatically convert them to CRLF endings on a win32 platform.
+        # To keep the original file EOL endings, we need to write the rows in binary format
+        # since PYTHON will automatically convert them to CRLF endings on the win32 platform.
         with (open(orig_file, 'r', encoding='utf8') as in_hdl,
               open(self.infile, 'wb') as out_hdl):
 
@@ -287,7 +292,7 @@ class GitPreCommitHook:
 
                 out_hdl.write(bytes(row, encoding='utf8'))
 
-        # Remove original file backup since no errors occurred.
+        # Remove the original file backup since no errors occurred.
         orig_file.unlink()
 
     # ---------------------------------------------------------
@@ -321,7 +326,6 @@ class GitPreCommitHook:
         repo_file = root_path / '.pre-commit-repo.json'
         repo_lock_file = repo_file.with_suffix('.lock')
 
-
         with FileLock(repo_lock_file, timeout=1):
             try:
                 # This is the first time the GIT commit command is executed.
@@ -346,7 +350,6 @@ class GitPreCommitHook:
 
                 # No point in creating a file if keyword substitution is not performed.
                 if self.files_modified:
-
                     with open(repo_file, 'w', encoding='latin1') as hdl:
                         json.dump(self.commit_data, hdl, ensure_ascii=False, indent=2)
 
@@ -358,5 +361,4 @@ class GitPreCommitHook:
 # ------------------------------------------------------
 
 if __name__ == "__main__":
-
     GitPreCommitHook(sys.argv[1:]).run()

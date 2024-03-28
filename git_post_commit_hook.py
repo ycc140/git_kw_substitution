@@ -7,8 +7,8 @@ VERSION INFO::
   License: Apache 2.0
     $Repo: git_kw_substitution
   $Author: Anders Wiklund
-    $Date: 2023-07-23 08:16:52
-     $Rev: 3
+    $Date: 2024-03-28 16:40:42
+     $Rev: 1
 """
 
 # BUILTIN modules
@@ -93,19 +93,20 @@ def run():
     MySQL DB that needs to be placed on a server that all developers have
     access to (not localhost).
 
-    The DB connection parameters are stored in the secrets file B{mysql_dsn}.
-    The location of the secrets directory varies depending on platform. The
-    following python code snippet will show you where it's at::
+    The DB connection parameters are stored in the secrets' file B{mysql_dsn}.
+    The location of the secrets directory varies depending on the platform.
+    The following python code snippet will show you where it's at::
 
         >>> import site
         >>> print(f'{site.USER_BASE}/secrets')
 
-    You need to create the secrets file in that directory with the following
+    You need to create the secrets' file in that directory with the following
     content (replace the asterix values with your own values)::
 
         user=*****,password=*****,host=*****,port=3306,autocommit=true
 
-    The program is started by the Git post-commit hook. How to configure
+    The program is started by the Git post-commit hook.
+    How to configure
     this in python is documented at: U{https://pre-commit.com/index.html}.
 
     A post-commit example block in the I{.pre-commit-config.yaml} file::
@@ -131,5 +132,4 @@ def run():
 # ------------------------------------------------------
 
 if __name__ == "__main__":
-
     run()
